@@ -7,21 +7,20 @@ import matplotlib.pyplot as plt
 class MazeEnv(gym.Env):
     def __init__(self, n, m):
         self.maze_size = [n,m] 
-        self.maze_map = []
 
-        self.target_size = 2
-        self.sapce_size = 2
+        self.target_size = 1
+        self.sapce_size = 1
         
         self.direction_space = [0, 1, 2, 3]  # Up, Down, Left, Right
         self.move_list = [(-1,0),(1,0),(0,-1),(0,1)]
-        self.move_wall = [-1,self.maze_size[0],-1,self.maze_size[1]]
-        self.distance_space = 0
-        self.state_space = 0
+        # self.move_wall = [-1,self.maze_size[0],-1,self.maze_size[1]]
+        # self.distance_space = 0
+        # self.state_space = 0
         
-        self.target_num = 0
+        self.target_num = None
         self.target_pos = []
         self.space_pos = []
-        self.cargo_pos = []
+        # self.cargo_pos = []
 
         self.generate_maze()
         self.state = self.get_state()
@@ -55,8 +54,9 @@ class MazeEnv(gym.Env):
         
         random_numbers = random.sample(range(0, self.maze_size[0] * self.maze_size[1]), self.target_size + self.sapce_size)
         
+        self.target_num = 0
         for i in range(self.target_size):
-            if(random_numbers[i]//self.maze_size[0] != 0):
+            if(random_numbers[i]//self.maze_size[1] != 0):
                 self.target_num += 1
                 self.target_pos.append((random_numbers[i]//self.maze_size[1], random_numbers[i]%self.maze_size[1]))
             else:
@@ -137,11 +137,11 @@ class MazeEnv(gym.Env):
         return min(3,int(direction*4))
     
     def step(self, action):
-        """
-        Move the robot location according to its location and direction
-        Return the new location and moving reward
-        """
-        reward = -1 - self.get_state_score() * self.reward['state_score']
+        # """
+        # Move the robot location according to its location and direction
+        # Return the new location and moving reward
+        # """
+        reward = -1 + self.get_state_score() * self.reward['state_score']
         
         if(len(action) != len(self.space_pos) * 2):
             raise ValueError("Invalid Action")
@@ -153,7 +153,7 @@ class MazeEnv(gym.Env):
                 reward += self.step_one(space_index, self.normal_direction(action[space_index*2]))
         self.state = self.get_state()
         
-        reward += self.get_state_score() * self.reward['state_score']
+        reward -= self.get_state_score() * self.reward['state_score']
         return self.state, reward, self.target_num == 0
 
     def get_step(self, action, space_index):
@@ -242,7 +242,7 @@ class MazeEnv(gym.Env):
             if(space_pos[0]==-1):
                 continue
             rect_2 = plt.Rectangle(space_pos[::-1], grid_size,
-                                   grid_size, edgecolor=None, color=(1.0-i*0.1,1.0-i*0.1,1.0-i*0.1))
+                                   grid_size, edgecolor=None, color=(1.0-i*0.3,1.0-i*0.3,1.0-i*0.3))
             ax.add_patch(rect_2)
             
         plt.show()
