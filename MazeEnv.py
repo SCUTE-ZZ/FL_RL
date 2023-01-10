@@ -9,8 +9,8 @@ class MazeEnv(gym.Env):
         self.maze_size = [n,m] 
         self.maze_map = []
 
-        self.target_size = 5
-        self.sapce_size = 5
+        self.target_size = 2
+        self.sapce_size = 2
         
         self.direction_space = [0, 1, 2, 3]  # Up, Down, Left, Right
         self.move_list = [(-1,0),(1,0),(0,-1),(0,1)]
@@ -36,7 +36,8 @@ class MazeEnv(gym.Env):
             "hit_target": -1,
             "destination": 1000.0,
             "finished": 10000.0,
-            "default": -1,
+            "default": 0,
+            "state_score": 10.0
         }
     
 
@@ -45,7 +46,7 @@ class MazeEnv(gym.Env):
             prim随机迷宫算法
             :param maze_size: 迷宫的宽度，生成迷宫尺寸为 maze_n * maze_m
             : maze_size // 5
-            : target_size // 1
+            : target_size // 2
             : space_size // 2
             
         """
@@ -79,6 +80,14 @@ class MazeEnv(gym.Env):
     def get_n_actions(self):
         return self.sapce_size * 2
     
+    def get_state_score(self):
+        score = 0
+        for i in self.target_pos:
+            if(i[0]==-1):
+                continue
+            score += i[0]
+        return score
+        
     def step_one(self, space_index, direction):
 #         print(space_index, direction)
         reward = 0
@@ -87,62 +96,90 @@ class MazeEnv(gym.Env):
 
         if(new_x<0 or new_y<0 or new_x>=self.maze_size[0] or new_y>=self.maze_size[1]):
             reward += self.reward['hit_wall']
+            # print("hit_wall")
         elif((new_x,new_y) in self.space_pos): 
             reward += self.reward['hit_space']
+            # print("hit_space")
             index = self.space_pos.index((new_x,new_y))
             self.space_pos[index] = self.space_pos[space_index]
             self.space_pos[space_index] = (new_x,new_y)
             
         elif((new_x,new_y) in self.target_pos):
             reward += self.reward['hit_target']
+            # print("hit_target")
             index = self.target_pos.index((new_x,new_y))
             self.target_pos[index] = self.space_pos[space_index]
             if(self.target_pos[index][0]==0):
                 reward += self.reward['destination']
+                # print("destination")
                 self.target_pos[index] = (-1, -1)
                 self.target_num -= 1
                 if(self.target_num == 0):
                     reward += self.reward['finished']
+                    # print("finished")
             self.space_pos[space_index] = (new_x,new_y)
         else:
             reward += self.reward['default']
+            # print("default")
             self.space_pos[space_index] = (new_x,new_y)
 
         return reward
-
+    
+    def show_action(self, action):
+        direction=['^','v','<','>']
+        new_action=[]
+        for space_index in range(len(action)//2):
+            step = self.get_step(action,space_index)
+            new_action.append((direction[min(3,int(action[space_index*2]*4))], step))
+        print(new_action)
+                  
+    def normal_direction(self, direction):
+        return min(3,int(direction*4))
+    
     def step(self, action):
         """
         Move the robot location according to its location and direction
         Return the new location and moving reward
         """
-        reward = 0
+        reward = -1 - self.get_state_score() * self.reward['state_score']
+        
         if(len(action) != len(self.space_pos) * 2):
             raise ValueError("Invalid Action")
         
         for space_index in range(len(action)//2):
-            for j in range(self.get_step(action,space_index)):
+            step = self.get_step(action,space_index)
+            for j in range(step):
 #                 print(action[space_index*2])
-                reward += self.step_one(space_index, min(3,int(action[space_index*2]*4)))
+                reward += self.step_one(space_index, self.normal_direction(action[space_index*2]))
         self.state = self.get_state()
         
+        reward += self.get_state_score() * self.reward['state_score']
         return self.state, reward, self.target_num == 0
 
     def get_step(self, action, space_index):
         max_step = 0
-        if(action[space_index*2] == 0):
+        direction = self.normal_direction(action[space_index*2])
+        if(direction == 0):
+            max_step = self.space_pos[space_index][0] + 1
+        elif(direction == 1):
+            max_step = self.maze_size[0] - self.space_pos[space_index][0]
+        elif(direction == 2): 
             max_step = self.space_pos[space_index][1] + 1
-        elif(action[space_index*2] == 1):
-            max_step = self.maze_size[0] - self.space_pos[space_index][1]
-        elif(action[space_index*2] == 2): 
-            max_step = self.space_pos[space_index][1] + 1
-        else: 
+        elif(direction == 3):
             max_step = self.maze_size[1] - self.space_pos[space_index][1]
-
+        else:
+            raise ValueError("Invalid Direction")
         return int(max_step * action[space_index*2+1])
 
     def reset(self, n = None , m = None):
         if(n == None):
             self.__init__(self.maze_size[0], self.maze_size[1])
+            while(self.target_num == 0):
+                self.__init__(self.maze_size[0], self.maze_size[1])
+        else:
+            self.__init__(n, m)
+            while(self.target_num == 0):
+                self.__init__(n, m)
         return self.state
 
     def random_action(self):
