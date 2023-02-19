@@ -4,19 +4,20 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 
+
 class MazeEnv(gym.Env):
     def __init__(self, n, m):
-        self.maze_size = [n,m] 
+        self.maze_size = [n, m]
 
         self.target_size = 1
         self.sapce_size = 1
-        
+
         self.direction_space = [0, 1, 2, 3]  # Up, Down, Left, Right
-        self.move_list = [(-1,0),(1,0),(0,-1),(0,1)]
+        self.move_list = [(-1, 0), (1, 0), (0, -1), (0, 1)]
         # self.move_wall = [-1,self.maze_size[0],-1,self.maze_size[1]]
         # self.distance_space = 0
         # self.state_space = 0
-        
+
         self.target_num = None
         self.target_pos = []
         self.space_pos = []
@@ -28,10 +29,10 @@ class MazeEnv(gym.Env):
         # self.maze_data = self.generate_maze((self.maze_size, self.maze_size), self.target_size, self.space_size)
         # self.update_cargo_pos()
         # self.state()
-        
+
         self.reward = {
-            "hit_wall": -100.0, 
-            "hit_space": -1.0, 
+            "hit_wall": -100.0,
+            "hit_space": -1.0,
             "hit_target": 0,
             "destination": 1000.0,
             "finished": 10000.0,
@@ -39,7 +40,6 @@ class MazeEnv(gym.Env):
             "target_score": 100.0,
             "space_score": 5.0
         }
-    
 
     def generate_maze(self):
         """
@@ -48,153 +48,162 @@ class MazeEnv(gym.Env):
             : maze_size // 5
             : target_size // 2
             : space_size // 2
-            
+
         """
         # mark = np.zeros(maze_size, dtype=np.int)
         # maze_data = np.zeros(self.maze_size[0] * self.maze_size[1], dtype=np.int)
-        
-        random_numbers = random.sample(range(0, self.maze_size[0] * self.maze_size[1]), self.target_size + self.sapce_size)
-        
+
+        random_numbers = random.sample(range(
+            0, self.maze_size[0] * self.maze_size[1]), self.target_size + self.sapce_size)
+
         self.target_num = 0
         for i in range(self.target_size):
-            if(random_numbers[i]//self.maze_size[1] != 0):
+            if (random_numbers[i]//self.maze_size[1] != 0):
                 self.target_num += 1
-                self.target_pos.append((random_numbers[i]//self.maze_size[1], random_numbers[i]%self.maze_size[1]))
+                self.target_pos.append(
+                    (random_numbers[i]//self.maze_size[1], random_numbers[i] % self.maze_size[1]))
             else:
-                self.target_pos.append((-1,-1))
+                self.target_pos.append((-1, -1))
         for i in range(self.target_size, self.target_size+self.sapce_size):
-            self.space_pos.append((random_numbers[i]//self.maze_size[1], random_numbers[i]%self.maze_size[1]))
-        
+            self.space_pos.append(
+                (random_numbers[i]//self.maze_size[1], random_numbers[i] % self.maze_size[1]))
+
         # self.start_point = self.target_pos[0]
         # self.destination = self.space_pos
         # return maze_data
-    
+
     def get_state(self):
-        # maze_size 
-        # target_pos  
+        # maze_size
+        # target_pos
         # space_pos
         return tuple(self.maze_size + [item for sublist in self.target_pos + self.space_pos for item in sublist])
-      
+
     def get_n_states(self):
-        return 2 +  self.target_size * 2 + self.sapce_size * 2
-    
+        return 2 + self.target_size * 2 + self.sapce_size * 2
+
     def get_n_actions(self):
         return self.sapce_size + 1
-    
+
     def get_target_score(self):
         target_score = 0
         for i in self.target_pos:
-            if(i[0]==-1):
+            if (i[0] == -1):
                 continue
             target_score += i[0]
         return target_score
-    
+
     def get_space_score(self):
         space_score = 0
         for i in self.space_pos:
             score = 1000
             for j in self.target_pos:
-                if(j[0]==-1):
+                if (j[0] == -1):
                     continue
                 score = min(score, abs(i[0]-j[0]) + abs(i[1]-j[1]))
             space_score += score
         return space_score
-        
+
     def step_one(self, space_index, direction):
-#         print(space_index, direction)
+        #         print(space_index, direction)
         reward = 0
         new_x = self.space_pos[space_index][0] + self.move_list[direction][0]
         new_y = self.space_pos[space_index][1] + self.move_list[direction][1]
 
-        if(new_x<0 or new_y<0 or new_x>=self.maze_size[0] or new_y>=self.maze_size[1]):
+        if (new_x < 0 or new_y < 0 or new_x >= self.maze_size[0] or new_y >= self.maze_size[1]):
             reward += self.reward['hit_wall']
             # print("hit_wall")
-        elif((new_x,new_y) in self.space_pos): 
+        elif ((new_x, new_y) in self.space_pos):
             reward += self.reward['hit_space']
             # print("hit_space")
-            index = self.space_pos.index((new_x,new_y))
+            index = self.space_pos.index((new_x, new_y))
             self.space_pos[index] = self.space_pos[space_index]
-            self.space_pos[space_index] = (new_x,new_y)
-            
-        elif((new_x,new_y) in self.target_pos):
+            self.space_pos[space_index] = (new_x, new_y)
+
+        elif ((new_x, new_y) in self.target_pos):
             reward += self.reward['hit_target']
             # print("hit_target")
-            index = self.target_pos.index((new_x,new_y))
+            index = self.target_pos.index((new_x, new_y))
             self.target_pos[index] = self.space_pos[space_index]
-            if(self.target_pos[index][0]==0):
+            if (self.target_pos[index][0] == 0):
                 reward += self.reward['destination']
                 # print("destination")
                 self.target_pos[index] = (-1, -1)
                 self.target_num -= 1
-                if(self.target_num == 0):
+                if (self.target_num == 0):
                     reward += self.reward['finished']
                     # print("finished")
-            self.space_pos[space_index] = (new_x,new_y)
+            self.space_pos[space_index] = (new_x, new_y)
         else:
             reward += self.reward['default']
             # print("default")
-            self.space_pos[space_index] = (new_x,new_y)
+            self.space_pos[space_index] = (new_x, new_y)
 
         return reward
-    
+
     def show_action(self, action):
-        direction=['^','v','<','>']
-        new_action=[]
+        direction = ['^', 'v', '<', '>']
+        new_action = []
         for space_index in range(len(action) - 1):
-            step = self.get_step(action,space_index)
-            new_action.append((direction[self.normal_direction(action[0])], step))
+            step = self.get_step(action, space_index)
+            new_action.append(
+                (direction[self.normal_direction(action[0])], step))
         print(new_action)
         return new_action
-                  
+
     def normal_direction(self, direction):
-        return min(3,int(direction*2+2))
-    
+        return min(3, int(direction*2+2))
+
     def step(self, action):
         # """
         # Move the robot location according to its location and direction
         # Return the new location and moving reward
         # """
-        reward = -1 + self.get_target_score() * self.reward['target_score'] + self.get_space_score() * self.reward['space_score']
-        
-        if(len(action) != len(self.space_pos) + 1):
+        reward = -1 + self.get_target_score() * \
+            self.reward['target_score'] + \
+            self.get_space_score() * self.reward['space_score']
+
+        if (len(action) != len(self.space_pos) + 1):
             raise ValueError("Invalid Action")
-        
+
         step_num = 0
         for space_index in range(len(action) - 1):
-            step = self.get_step(action,space_index)
+            step = self.get_step(action, space_index)
             for j in range(step):
                 step_num += 1
 #                 print(action[space_index*2])
-                reward += self.step_one(space_index, self.normal_direction(action[0]))
+                reward += self.step_one(space_index,
+                                        self.normal_direction(action[0]))
         self.state = self.get_state()
-        
-        if(step_num ==0):
+
+        if (step_num == 0):
             reward -= 100
-        reward = reward - self.get_target_score() * self.reward['target_score'] - self.get_space_score() * self.reward['space_score']
+        reward = reward - self.get_target_score() * \
+            self.reward['target_score'] - \
+            self.get_space_score() * self.reward['space_score']
         return self.state, np.array(reward/100.0)+0.0, self.target_num == 0, "INFO"
 
     def get_step(self, action, space_index):
         max_step = 0
         direction = self.normal_direction(action[0])
         # print(action[0], direction, space_index)
-        if(direction == 0):
+        if (direction == 0):
             max_step = self.space_pos[space_index][0] + 1
-        elif(direction == 1):
+        elif (direction == 1):
             max_step = self.maze_size[0] - self.space_pos[space_index][0]
-        elif(direction == 2): 
+        elif (direction == 2):
             max_step = self.space_pos[space_index][1] + 1
-        elif(direction == 3):
+        elif (direction == 3):
             max_step = self.maze_size[1] - self.space_pos[space_index][1]
         else:
             raise ValueError("Invalid Direction")
-        
+
         # max_step = 0
         # direction = self.normal_direction(action[0])
         # if(direction == 0):
         #     max_step = self.maze_size[0] + 1
         # elif(direction == 1):
         #     max_step = self.maze_size[0] + 1
-        # elif(direction == 2): 
+        # elif(direction == 2):
         #     max_step = self.maze_size[1] + 1
         # elif(direction == 3):
         #     max_step = self.maze_size[1] + 1
@@ -202,28 +211,28 @@ class MazeEnv(gym.Env):
         #     raise ValueError("Invalid Direction")
         return int(max_step * (action[space_index+1] + 1) / 2)
 
-    def reset(self, n = None , m = None):
-        if(n == None):
+    def reset(self, n=None, m=None):
+        if (n == None):
             self.__init__(self.maze_size[0], self.maze_size[1])
-            while(self.target_num == 0):
+            while (self.target_num == 0):
                 self.__init__(self.maze_size[0], self.maze_size[1])
         else:
             self.__init__(n, m)
-            while(self.target_num == 0):
+            while (self.target_num == 0):
                 self.__init__(n, m)
         return self.state
 
     def random_action(self):
         action = []
-        direction = random.uniform(-1,1)
+        direction = random.uniform(-1, 1)
         action.append(direction)
         for i in range(len(self.space_pos)):
-            distance = random.uniform(-1,1)
+            distance = random.uniform(-1, 1)
             action.append(distance)
         return action
-    
+
     def __repr__(self):
-#         height, width, walls = self.maze_data.shape
+        #         height, width, walls = self.maze_data.shape
         self.draw_maze()
 #         self.draw_robot()
 
@@ -257,25 +266,24 @@ class MazeEnv(gym.Env):
 
         for i in range(r):  # 绘制墙壁
             for j in range(c):
-                rect_2 = plt.Rectangle([j,i], grid_size,
+                rect_2 = plt.Rectangle([j, i], grid_size,
                                        grid_size, edgecolor=None, color="green")
                 ax.add_patch(rect_2)
-                
+
         for target_pos in self.target_pos:
-            if(target_pos[0]==-1):
+            if (target_pos[0] == -1):
                 continue
             rect_2 = plt.Rectangle(target_pos[::-1], grid_size,
                                    grid_size, edgecolor=None, color="red")
             ax.add_patch(rect_2)
-            
-        
+
         for i, space_pos in enumerate(self.space_pos):
-            if(space_pos[0]==-1):
+            if (space_pos[0] == -1):
                 continue
             rect_2 = plt.Rectangle(space_pos[::-1], grid_size,
-                                   grid_size, edgecolor=None, color=(1.0-i*0.3,1.0-i*0.3,1.0-i*0.3))
+                                   grid_size, edgecolor=None, color=(1.0-i*0.3, 1.0-i*0.3, 1.0-i*0.3))
             ax.add_patch(rect_2)
-            
+
         plt.show()
 
 # maze = MazeEnv(5, 5)
@@ -285,4 +293,3 @@ class MazeEnv(gym.Env):
 # maze.move(action)
 # print(action)
 # maze.draw_maze()
-
