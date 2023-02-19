@@ -30,14 +30,13 @@ class MazeEnv(gym.Env):
         # self.state()
         
         self.reward = {
-            "hit_wall": -100.0, 
-            "hit_space": -1.0, 
-            "hit_target": 0,
+            "hit_wall": -10.0, 
+            "hit_space": -10.0, 
+            "hit_target": -1,
             "destination": 1000.0,
             "finished": 10000.0,
-            "default": -0.1,
-            "target_score": 100.0,
-            "space_score": 5.0
+            "default": 0,
+            "state_score": 10.0
         }
     
 
@@ -79,26 +78,15 @@ class MazeEnv(gym.Env):
         return 2 +  self.target_size * 2 + self.sapce_size * 2
     
     def get_n_actions(self):
-        return self.sapce_size + 1
+        return self.sapce_size * 2
     
-    def get_target_score(self):
-        target_score = 0
+    def get_state_score(self):
+        score = 0
         for i in self.target_pos:
             if(i[0]==-1):
                 continue
-            target_score += i[0]
-        return target_score
-    
-    def get_space_score(self):
-        space_score = 0
-        for i in self.space_pos:
-            score = 1000
-            for j in self.target_pos:
-                if(j[0]==-1):
-                    continue
-                score = min(score, abs(i[0]-j[0]) + abs(i[1]-j[1]))
-            space_score += score
-        return space_score
+            score += i[0]
+        return score
         
     def step_one(self, space_index, direction):
 #         print(space_index, direction)
@@ -140,43 +128,37 @@ class MazeEnv(gym.Env):
     def show_action(self, action):
         direction=['^','v','<','>']
         new_action=[]
-        for space_index in range(len(action) - 1):
+        for space_index in range(len(action)//2):
             step = self.get_step(action,space_index)
-            new_action.append((direction[self.normal_direction(action[0])], step))
+            new_action.append((direction[min(3,int(action[space_index*2]*4))], step))
         print(new_action)
-        return new_action
                   
     def normal_direction(self, direction):
-        return min(3,int(direction*2+2))
+        return min(3,int(direction*4))
     
     def step(self, action):
         # """
         # Move the robot location according to its location and direction
         # Return the new location and moving reward
         # """
-        reward = -1 + self.get_target_score() * self.reward['target_score'] + self.get_space_score() * self.reward['space_score']
+        reward = -1 + self.get_state_score() * self.reward['state_score']
         
-        if(len(action) != len(self.space_pos) + 1):
+        if(len(action) != len(self.space_pos) * 2):
             raise ValueError("Invalid Action")
         
-        step_num = 0
-        for space_index in range(len(action) - 1):
+        for space_index in range(len(action)//2):
             step = self.get_step(action,space_index)
             for j in range(step):
-                step_num += 1
 #                 print(action[space_index*2])
-                reward += self.step_one(space_index, self.normal_direction(action[0]))
+                reward += self.step_one(space_index, self.normal_direction(action[space_index*2]))
         self.state = self.get_state()
         
-        if(step_num ==0):
-            reward -= 100
-        reward = reward - self.get_target_score() * self.reward['target_score'] - self.get_space_score() * self.reward['space_score']
-        return self.state, np.array(reward/100.0)+0.0, self.target_num == 0, "INFO"
+        reward -= self.get_state_score() * self.reward['state_score']
+        return self.state, reward, self.target_num == 0
 
     def get_step(self, action, space_index):
         max_step = 0
-        direction = self.normal_direction(action[0])
-        # print(action[0], direction, space_index)
+        direction = self.normal_direction(action[space_index*2])
         if(direction == 0):
             max_step = self.space_pos[space_index][0] + 1
         elif(direction == 1):
@@ -187,20 +169,7 @@ class MazeEnv(gym.Env):
             max_step = self.maze_size[1] - self.space_pos[space_index][1]
         else:
             raise ValueError("Invalid Direction")
-        
-        # max_step = 0
-        # direction = self.normal_direction(action[0])
-        # if(direction == 0):
-        #     max_step = self.maze_size[0] + 1
-        # elif(direction == 1):
-        #     max_step = self.maze_size[0] + 1
-        # elif(direction == 2): 
-        #     max_step = self.maze_size[1] + 1
-        # elif(direction == 3):
-        #     max_step = self.maze_size[1] + 1
-        # else:
-        #     raise ValueError("Invalid Direction")
-        return int(max_step * (action[space_index+1] + 1) / 2)
+        return int(max_step * action[space_index*2+1])
 
     def reset(self, n = None , m = None):
         if(n == None):
@@ -215,10 +184,10 @@ class MazeEnv(gym.Env):
 
     def random_action(self):
         action = []
-        direction = random.uniform(-1,1)
-        action.append(direction)
         for i in range(len(self.space_pos)):
-            distance = random.uniform(-1,1)
+            direction = random.random()
+            distance = random.random()
+            action.append(direction)
             action.append(distance)
         return action
     
